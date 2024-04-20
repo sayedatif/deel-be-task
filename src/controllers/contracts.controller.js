@@ -4,7 +4,7 @@ async function getContractById(req, res) {
   try {
     const { Contract } = req.app.get("models");
     const { id } = req.params;
-    const { dataValues: profile } = req.profile;
+    const { profile } = req;
     const contract = await Contract.findOne({
       where: {
         id,
@@ -23,7 +23,7 @@ async function getContractById(req, res) {
 async function getContracts(req, res) {
   try {
     const { Contract } = req.app.get("models");
-    const { dataValues: profile } = req.profile;
+    const { profile } = req;
     const contracts = await Contract.findAll({
       where: {
         status: {
