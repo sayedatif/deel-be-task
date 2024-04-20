@@ -63,7 +63,7 @@ async function payForJob(req, res) {
             },
           },
         })
-      ).toJSON();
+      )?.toJSON();
 
       if (!job) {
         throw new Error("job_not_found");
@@ -85,25 +85,27 @@ async function payForJob(req, res) {
         throw new Error("mismatch_amount");
       }
 
-      const [{ dataValues: client }, { dataValues: contractor }] =
-        await Promise.all([
-          Profile.findOne({
-            where: {
-              id: {
-                [Op.eq]: job.Contract.ClientId,
-              },
+      let [client, contractor] = await Promise.all([
+        Profile.findOne({
+          where: {
+            id: {
+              [Op.eq]: job.Contract.ClientId,
             },
-            transaction: t,
-          }),
-          Profile.findOne({
-            where: {
-              id: {
-                [Op.eq]: job.Contract.ContractorId,
-              },
+          },
+          transaction: t,
+        }),
+        Profile.findOne({
+          where: {
+            id: {
+              [Op.eq]: job.Contract.ContractorId,
             },
-            transaction: t,
-          }),
-        ]);
+          },
+          transaction: t,
+        }),
+      ]);
+
+      client = client.toJSON();
+      contractor = contractor.toJSON();
 
       if (client.balance < body.amount) {
         throw new Error("invalid_balance");
@@ -161,41 +163,21 @@ async function payForJob(req, res) {
       message: "Successfully paid",
     });
   } catch (err) {
-    console.log("[err]", err);
-    if (err.message === "job_not_found") {
-      res.status(404).json({
-        message: "Job not found",
-      });
-      return;
-    } else if (err.message === "invalid_balance") {
-      res.status(400).json({
-        message: "Invalid balance",
-      });
-      return;
-    } else if (err.message === "invalid_job") {
-      res.status(400).json({
-        message: "Invalid client job",
-      });
-      return;
-    } else if (err.message === "job_already_paid") {
-      res.status(400).json({
-        message: "Job already paid",
-      });
-      return;
-    } else if (err.message === "contract_terminated") {
-      res.status(400).json({
-        message: "Contract terminated",
-      });
-      return;
-    } else if (err.message === "mismatch_amount") {
-      res.status(400).json({
-        message: "Invalid pay amount",
-      });
-      return;
-    }
-    res.status(500).json({
+    const errorMessages = {
+      job_not_found: { message: "Job not found", status: 404 },
+      invalid_balance: { message: "Invalid balance", status: 400 },
+      invalid_job: { message: "Invalid client job", status: 400 },
+      job_already_paid: { message: "Job already paid", status: 400 },
+      contract_terminated: { message: "Contract terminated", status: 400 },
+      mismatch_amount: { message: "Invalid pay amount", status: 400 },
+    };
+
+    const errorInfo = errorMessages[err.message] || {
       message: "Internal server error",
-    });
+      status: 500,
+    };
+
+    return res.status(errorInfo.status).json({ message: errorInfo.message });
   }
 }
 
