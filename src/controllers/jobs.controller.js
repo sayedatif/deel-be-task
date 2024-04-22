@@ -5,28 +5,23 @@ async function getUnpaidJobs(req, res) {
   try {
     const { Contract, Job } = req.app.get("models");
     const { profile } = req;
-    const activeContracts = await Contract.findAll({
+    const activeContractsWithUnpaidJobs = await Job.findAll({
       where: {
-        status: {
-          [Op.eq]: "in_progress",
-        },
-        [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
+        Paid: null,
       },
-    });
-    if (!activeContracts || activeContracts.length === 0) {
-      return res.json([]);
-    }
-    const unpaidJobs = await Job.findAll({
-      where: {
-        ContractId: {
-          [Op.in]: activeContracts.map((c) => c.id),
+      include: [
+        {
+          model: Contract,
+          attributes: [],
+          where: {
+            status: "in_progress",
+            [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
+          },
         },
-        Paid: {
-          [Op.is]: null,
-        },
-      },
+      ],
     });
-    res.json(unpaidJobs);
+
+    res.json(activeContractsWithUnpaidJobs);
   } catch (err) {
     res.status(500).json({
       message: "Internal server error",
@@ -62,6 +57,7 @@ async function payForJob(req, res) {
               [Op.eq]: jobId,
             },
           },
+          transaction: t,
         })
       )?.toJSON();
 

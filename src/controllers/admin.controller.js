@@ -12,55 +12,43 @@ async function getBestProfession(req, res) {
       return;
     }
 
-    const record = await sequelize.transaction(async (t) => {
-      let result = await Job.findAll({
-        attributes: [
-          [sequelize.fn("SUM", sequelize.col("price")), "price"],
-          [sequelize.col("Contract.ContractorId"), "ContractorId"],
-        ],
-        include: [
-          {
-            model: Contract,
-            attributes: [],
-            where: { id: sequelize.col("Job.ContractId") },
-          },
-        ],
-        where: {
-          paid: true,
-          createdAt: {
-            [Op.between]: [start, end],
-          },
-        },
-        group: ["Contract.ContractorId"],
-        order: [[sequelize.literal("price"), "DESC"]],
-        limit: 1,
-        transaction: t,
-      });
-
-      if (result.length === 0) {
-        throw new Error("empty_result");
-      }
-
-      result = result[0].toJSON();
-      const contractorProfile = (
-        await Profile.findOne({
-          where: {
-            id: {
-              [Op.eq]: result.ContractorId,
+    const result = await Job.findAll({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("price")), "price"],
+        [literal(`CONCAT("firstName", ' ', "lastName")`), "fullName"],
+        [sequelize.col("Contract.ContractorId"), "ContractorId"],
+      ],
+      include: [
+        {
+          model: Contract,
+          attributes: [],
+          where: { id: sequelize.col("Job.ContractId") },
+          include: [
+            {
+              model: Profile,
+              attributes: [],
+              where: { id: sequelize.col("Contract.ContractorId") },
+              as: "Contractor",
             },
-          },
-          transaction: t,
-        })
-      )?.toJSON();
-
-      return {
-        id: contractorProfile.id,
-        fullName: contractorProfile.fullName,
-        totalPrice: result.price,
-      };
+          ],
+        },
+      ],
+      where: {
+        paid: true,
+        createdAt: {
+          [Op.between]: [start, end],
+        },
+      },
+      group: ["Contract.ContractorId"],
+      order: [[sequelize.literal("price"), "DESC"]],
+      limit: 1,
     });
 
-    res.json(record);
+    if (result.length === 0) {
+      throw new Error("empty_result");
+    }
+
+    res.json(result[0]);
   } catch (err) {
     if (err.message === "empty_result") {
       res.status(200).json({});
@@ -83,55 +71,40 @@ async function getBestClients(req, res) {
       return;
     }
 
-    const result = await sequelize.transaction(async (t) => {
-      let records = await Job.findAll({
-        attributes: [
-          [sequelize.fn("SUM", sequelize.col("price")), "paid"],
-          [literal(`CONCAT("firstName", ' ', "lastName")`), "fullName"],
-          [sequelize.col("Contract.ClientId"), "id"],
-        ],
-        include: [
-          {
-            model: Contract,
-            attributes: [],
-            where: { id: sequelize.col("Job.ContractId") },
-            include: [
-              {
-                model: Profile,
-                attributes: [],
-                where: { id: sequelize.col("Contract.ClientId") },
-                as: "Client",
-              },
-            ],
-          },
-        ],
-        where: {
-          paid: true,
-          createdAt: {
-            [Op.between]: [start, end],
-          },
+    const result = await Job.findAll({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("price")), "paid"],
+        [literal(`CONCAT("firstName", ' ', "lastName")`), "fullName"],
+        [sequelize.col("Contract.ClientId"), "id"],
+      ],
+      include: [
+        {
+          model: Contract,
+          attributes: [],
+          where: { id: sequelize.col("Job.ContractId") },
+          include: [
+            {
+              model: Profile,
+              attributes: [],
+              where: { id: sequelize.col("Contract.ClientId") },
+              as: "Client",
+            },
+          ],
         },
-        group: ["Contract.ClientId"],
-        order: [[sequelize.literal("paid"), "DESC"]],
-        limit: limit,
-        transaction: t,
-      });
-
-      if (records.length === 0) {
-        throw new Error("empty_result");
-      }
-
-      records = records.map((r) => r.toJSON());
-
-      return records;
+      ],
+      where: {
+        paid: true,
+        createdAt: {
+          [Op.between]: [start, end],
+        },
+      },
+      group: ["Contract.ClientId"],
+      order: [[sequelize.literal("paid"), "DESC"]],
+      limit: limit,
     });
 
     res.status(200).json(result);
   } catch (err) {
-    if (err.message === "empty_result") {
-      res.status(200).json([]);
-      return;
-    }
     res.status(500).json({
       message: "Internal server error",
     });

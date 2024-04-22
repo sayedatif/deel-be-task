@@ -11,7 +11,8 @@ async function getContractById(req, res) {
         [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
       },
     });
-    if (!contract) return res.status(404).end();
+    if (!contract)
+      return res.status(404).json({ message: "Contract not found" });
     res.json(contract);
   } catch (err) {
     res.status(500).json({
