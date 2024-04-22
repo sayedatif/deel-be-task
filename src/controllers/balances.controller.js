@@ -75,10 +75,12 @@ async function addClientDeposit(req, res) {
       res.status(404).json({
         message: "No contract linked to clientId",
       });
+      return;
     } else if (err.message === "invalid_amount") {
       res.status(400).json({
         message: "Invalid amount",
       });
+      return;
     }
     res.status(500).json({
       message: "Internal server error",
