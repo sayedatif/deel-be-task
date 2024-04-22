@@ -4,6 +4,7 @@ const { sequelize } = require("./model");
 const contractsRoute = require("./routes/contracts.route");
 const jobsRoute = require("./routes/jobs.route");
 const adminRoute = require("./routes/admin.route");
+const balancesRoute = require("./routes/balances.route");
 
 const app = express();
 app.use(bodyParser.json());
