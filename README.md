@@ -10,7 +10,7 @@ This backend exercise involves building a Node.js/Express.js app that will serve
 
 ### Profile
 
-A profile can be either a `client` or a `contractor`.
+A profile can be either a `client` or a `contractor` or an `admin`.
 clients create contracts with contractors. contractor does jobs for clients and get paid.
 Each profile has a balance property.
 
@@ -59,7 +59,19 @@ Below is a list of the required API's for the application.
 
 1. **_POST_** `/jobs/:job_id/pay` - Pay for a job, a client can only pay if his balance >= the amount to pay. The amount should be moved from the client's balance to the contractor balance.
 
+```
+body: {
+    amount: Number
+}
+```
+
 1. **_POST_** `/balances/deposit/:userId` - Deposits money into the the the balance of a client, a client can't deposit more than 25% his total of jobs to pay. (at the deposit moment)
+
+```
+body: {
+    amount: Number
+}
+```
 
 1. **_GET_** `/admin/best-profession?start=<date>&end=<date>` - Returns the profession that earned the most money (sum of jobs paid) for any contactor that worked in the query time range.
 
