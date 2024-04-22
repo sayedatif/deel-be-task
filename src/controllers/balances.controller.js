@@ -52,30 +52,19 @@ async function addClientDeposit(req, res) {
         throw new Error("invalid_amount");
       }
 
-      const clientProfile = (
-        await Profile.findOne({
-          where: {
-            id: {
-              [Op.eq]: userId,
-            },
+      const clientProfile = await Profile.findOne({
+        where: {
+          id: {
+            [Op.eq]: userId,
           },
-          transaction: t,
-        })
-      ).toJSON();
-
-      await Profile.update(
-        {
-          balance: clientProfile.balance + body.amount,
         },
-        {
-          where: {
-            id: {
-              [Op.eq]: userId,
-            },
-          },
-          transaction: t,
-        }
-      );
+        transaction: t,
+        lock: true,
+      });
+
+      clientProfile.balance = clientProfile.balance + body.amount;
+
+      await clientProfile.save({ transaction: t });
     });
 
     res.status(200).json({

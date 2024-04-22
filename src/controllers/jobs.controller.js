@@ -49,17 +49,16 @@ async function payForJob(req, res) {
     }
 
     await sequelize.transaction(async (t) => {
-      let job = (
-        await Job.findOne({
-          include: Contract,
-          where: {
-            id: {
-              [Op.eq]: jobId,
-            },
+      let job = await Job.findOne({
+        include: Contract,
+        where: {
+          id: {
+            [Op.eq]: jobId,
           },
-          transaction: t,
-        })
-      )?.toJSON();
+        },
+        transaction: t,
+        lock: true,
+      });
 
       if (!job) {
         throw new Error("job_not_found");
@@ -81,77 +80,43 @@ async function payForJob(req, res) {
         throw new Error("mismatch_amount");
       }
 
-      let [client, contractor] = await Promise.all([
+      let [client, contractor, contract] = await Promise.all([
         Profile.findOne({
-          where: {
-            id: {
-              [Op.eq]: job.Contract.ClientId,
-            },
-          },
+          where: { id: job.Contract.ClientId },
           transaction: t,
+          lock: true,
         }),
         Profile.findOne({
-          where: {
-            id: {
-              [Op.eq]: job.Contract.ContractorId,
-            },
-          },
+          where: { id: job.Contract.ContractorId },
           transaction: t,
+          lock: true,
+        }),
+        Contract.findOne({
+          where: { id: job.Contract.id },
+          transaction: t,
+          lock: true,
         }),
       ]);
 
-      client = client.toJSON();
-      contractor = contractor.toJSON();
+      if (!client || !contractor) {
+        throw new Error("profile_not_found");
+      }
 
       if (client.balance < body.amount) {
         throw new Error("invalid_balance");
       }
 
+      client.balance -= Number(body.amount);
+      contractor.balance += Number(body.amount);
+      job.paid = true;
+      job.paymentDate = new Date();
+      contract.status = "terminated";
+
       await Promise.all([
-        Job.update(
-          { paid: true, paymentDate: new Date() },
-          {
-            where: {
-              id: {
-                [Op.eq]: jobId,
-              },
-            },
-            transaction: t,
-          }
-        ),
-        Contract.update(
-          { status: "terminated" },
-          {
-            where: {
-              id: {
-                [Op.eq]: job.ContractId,
-              },
-            },
-            transaction: t,
-          }
-        ),
-        Profile.update(
-          { balance: client.balance - Number(body.amount) },
-          {
-            where: {
-              id: {
-                [Op.eq]: job.Contract.ClientId,
-              },
-            },
-            transaction: t,
-          }
-        ),
-        Profile.update(
-          { balance: contractor.balance + Number(body.amount) },
-          {
-            where: {
-              id: {
-                [Op.eq]: job.Contract.ContractorId,
-              },
-            },
-            transaction: t,
-          }
-        ),
+        client.save({ transaction: t }),
+        contractor.save({ transaction: t }),
+        job.save({ transaction: t }),
+        contract.save({ transaction: t }),
       ]);
     });
 
