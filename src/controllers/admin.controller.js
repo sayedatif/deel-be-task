@@ -45,15 +45,12 @@ async function getBestProfession(req, res) {
     });
 
     if (result.length === 0) {
-      throw new Error("empty_result");
+      res.status(200).json({});
+      return;
     }
 
     res.json(result[0]);
   } catch (err) {
-    if (err.message === "empty_result") {
-      res.status(200).json({});
-      return;
-    }
     res.status(500).json({
       message: "Internal server error",
     });
