@@ -62,7 +62,7 @@ async function addClientDeposit(req, res) {
         lock: true,
       });
 
-      clientProfile.balance = clientProfile.balance + body.amount;
+      clientProfile.balance += Number(body.amount);
 
       await clientProfile.save({ transaction: t });
     });
